@@ -14,6 +14,9 @@ Cargo.lock
 # rCore_Tutorial_v3
 /rCore-Tutorial-v3
 rCore-Tutorial-v3/
+# riscv 0.8.0
+/riscv
+riscv/
 
 /donothing
 donothing/

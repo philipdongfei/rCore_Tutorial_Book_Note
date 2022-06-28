@@ -30,6 +30,7 @@ macro_rules! println {
     }
 }
 
+/*
 #[macro_export]
 macro_rules! info {
     ($fmt: literal $(, $($arg: tt)+)?) => {
@@ -37,3 +38,4 @@ macro_rules! info {
     }
 
 }
+*/
