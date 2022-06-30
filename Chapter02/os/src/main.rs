@@ -7,6 +7,7 @@
 
 use core::arch::global_asm;
 
+
 //#[cfg(feature = "board_qemu")]
 #[path = "boards/qemu.rs"]
 mod board;
@@ -20,6 +21,7 @@ mod sbi;
 mod sync;
 pub mod syscall;
 pub mod trap;
+mod stack_trace;
 
 
 global_asm!(include_str!("entry.asm"));
