@@ -27,3 +27,6 @@ BootLoader 要干的事情包括文件系统引导、网卡引导、操作系统
 ##rustsbi-qemu.bin的编译方法
 irustsbi-qemu.bin 只需在 platform/qemu 目录下 just build 即可在 target/riscv64gc-unknown-none-elf/debug 中找到，其中 just 是 Rust 开发的一个命令行工具，可以通过 cargo install just 安装在当前环境中。
 
+##批处理操作系统流程图
+https://github.com/avizii/kylin/blob/master/docs/images/%E6%89%B9%E5%A4%84%E7%90%86%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E6%B5%81%E7%A8%8B%E5%9B%BE.png
+
