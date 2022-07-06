@@ -1,13 +1,13 @@
 use crate::sbi::shutdown;
 use core::panic::PanicInfo;
-use crate::stack_trace::print_stack_trace;
+//use crate::stack_trace::print_stack_trace;
 
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     if let Some(location) = info.location() {
         println!(
-            "Panicked at {}:{} {}",
+            "[kernel] Panicked at {}:{} {}",
             location.file(),
             location.line(),
             info.message().unwrap()
@@ -17,8 +17,7 @@ fn panic(info: &PanicInfo) -> ! {
         println!("Panicked: {}", info.message().unwrap());
     }
 
-    /// pro ex1
-    unsafe { print_stack_trace(); }
+    //unsafe { print_stack_trace(); }
 
     shutdown()
 }
