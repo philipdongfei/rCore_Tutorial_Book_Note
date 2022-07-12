@@ -27,6 +27,7 @@ pub mod syscall;
 pub mod task;
 mod timer;
 pub mod trap;
+extern crate bitflags;
 
 
 global_asm!(include_str!("entry.asm"));
