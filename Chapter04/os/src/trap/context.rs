@@ -9,7 +9,12 @@ pub struct TrapContext {
     pub sstatus: Sstatus,
     /// CSR sepc
     pub sepc: usize,
+    ///
+    pub kernel_stap: usize,
+    pub kernel_sp: usize,
+    pub trap_handler: usize,
 }
+
 
 impl TrapContext {
     /// set stack pointer to x_2 reg(sp)

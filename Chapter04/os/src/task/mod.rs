@@ -23,7 +23,7 @@ pub struct TaskManager {
 /// Inner of Task Manager
 struct TaskManagerInner {
     /// task list
-    tasks: [TaskControlBlock; MAX_APP_NUM],
+    tasks: Vec<TaskControlBlock>,
     /// id of current `Running` task
     current_task: usize,
 }
@@ -31,27 +31,23 @@ struct TaskManagerInner {
 lazy_static! {
     /// Global variable: TASK_MANAGER
     pub static ref TASK_MANAGER: TaskManager = {
+        println!("init TASK_MANAGER");
         let num_app = get_num_app();
-        let mut tasks = [
-            TaskControlBlock {
-                task_cx: TaskContext::zero_init(),
-                task_status: TaskStatus::UnInit
-            };
-            MAX_APP_NUM
-        ];
-            for (i, task) in tasks.iter_mut().enumerate() {
-                task.task_cx = TaskContext::goto_restore(init_app_cx(i));
-                task.task_status = TaskStatus::Ready;
-            }
-            TaskManager {
-                num_app,
-                inner: unsafe { 
-                    UPSafeCell::new(TaskManagerInner {
-                    tasks,
-                    current_task: 0,
-                    }) 
-                },
-            }
+        println!("num_app = {}", num_app);
+        let mut tasks: Vec<TaskControlBlock> = Vec::new();
+        for i in 0..num_app {
+            tasks.push(TAskControlBlock::new(
+                    get_app_data(i),
+                    i,
+            ));
+        }
+        TaskManager {
+            num_app,
+            inner: RefCell::new(TaskManagerInner {
+                tasks,
+                current_task: 0,
+            }),
+        }
     };
 }
 
@@ -149,3 +145,79 @@ pub fn exit_current_and_run_next() {
     mark_current_exited();
     run_next_task();
 }
+
+impl TaskManager {
+    fn get_current_token(&self) -> usize {
+        let inner = self.inner.borrow();
+        let current = inner.current_task;
+        inner.tasks[current].get_user_token()
+    }
+    fn get_current_trap_cx(&self) -> &mut TrapContext {
+        let inner = self.inner.borrow();
+        let current = inner.current_task;
+        inner.tasks[current].get_trap_cx()
+    }
+}
+
+pub fn current_user_token() -> usize {
+    TASK_MANAGER.get_current_token()
+}
+
+pub fn current_trap_cx() -> &'static mut TrapContex {
+    TASK_MANAGER.get_current_trap_cx()
+}
+
+fn set_kernel_trap_entry() {
+    unsafe {
+        stvec::write(trap_from_kernel as usize, TrapMode::Direct);
+    }
+}
+
+#[no_mangle]
+pub fn trap_from_kernel() -> ! {
+    panic!("a trap from kernel!");
+}
+
+#[no_mangle]
+pub fn trap_handler() -> ! {
+    set_kernel_trap_entry();
+    let cx = current_trap_cx();
+    let scause = scause::read();
+    let stval = stval::read();
+    match scause.cause() {
+        ...
+    }
+    trap_return();
+}
+
+fn set_user_trap_entry() {
+    unsafe {
+        stvec::write(TRAMPOLINE as usize, TrapMode::Direct);
+    }
+}
+
+#[no_mangle]
+pub fn trap_return() -> ! {
+    set_user_trap_entry();
+    let trap_cx_ptr = TRAP_CONTEXT;
+    let user_satp = current_user_token();
+    extern "C" {
+        fn __alltraps();
+        fn __restore();
+    }
+    let restore_va = __restore as usize - __alltraps as usize + TRAMPOLINE;
+    unsafe {
+        asm!(
+            "fence.i",
+            "jr {restore_va}",
+            restore_va = in(reg) restore_va,
+            in("a0") trap_cx_ptr,
+            in("a1") user_satp,
+            options(noreturn)
+        );
+    }
+    panic!("Unreachable in back_to_user!");
+}
+
+
+
