@@ -12,7 +12,7 @@ OBJCOPY := rust-objcopy --binary-architecture=riscv64
 
 
 elf: $(APPS) 
-		@python3 build.py
+		@cargo build --release
 
 
 binary: elf
@@ -21,7 +21,7 @@ binary: elf
 build: binary
 
 clean: 
-		#cargo clean
+		@cargo clean
 
 .PHONY: elf binary build clean
 

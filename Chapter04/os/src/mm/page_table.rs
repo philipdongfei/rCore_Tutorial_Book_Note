@@ -1,6 +1,10 @@
+use super::{frame_alloc, FrameTracker, PhysPageNum, StepByOne, VirtAddr, VirtPageNum};
+use alloc::vec;
+use alloc::vec::Vec;
 use bitflags::*;
 
 bitflags! {
+    /// page table entry flags
     pub struct PTEFlags: u8 {
         const V = 1 << 0;
         const R = 1 << 1;
@@ -31,7 +35,7 @@ impl PageTableEntry {
         }
     }
     pub fn ppn(&self) -> PhysPageNum {
-        (self.bits >> 10 && ((1usize << 44) - 1)).into()
+        (self.bits >> 10 & ((1usize << 44) - 1)).into()
     }
     pub fn flags(&self) -> PTEFlags {
         PTEFlags::from_bits(self.bits as u8).unwrap()
@@ -40,8 +44,19 @@ impl PageTableEntry {
 
 impl PageTableEntry {
     pub fn is_valid(&self) -> bool {
-        (self.flags() & PETFlags::V) != PETFlags::empty()
+        (self.flags() & PTEFlags::V) != PTEFlags::empty()
     }
+    pub fn readable(&self) -> bool {
+        (self.flags() & PTEFlags::R) != PTEFlags::empty()
+    }
+    pub fn writable(&self) -> bool {
+        (self.flags() & PTEFlags::W) != PTEFlags::empty()
+    }
+    
+    pub fn executable(&self) -> bool {
+        (self.flags() & PTEFlags::X) != PTEFlags::empty()
+    }
+
 }
 
 pub struct PageTable {
@@ -59,10 +74,6 @@ impl PageTable {
     }
 }
 
-impl PageTable {
-    pub fn map(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, flags: PTEFlags);
-    pub fn unmap(&mut self, vpn: VirtPageNum);
-}
 
 impl PageTable {
     fn find_pte_create(&mut self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
@@ -130,12 +141,13 @@ impl PageTable {
         self.find_pte(vpn)
             .map(|pte| {pte.clone()})
     }
+    pub fn token(&self) -> usize {
+        8usize << 60 | self.root_ppn.0
+    }
 }
 
-pub fn token(&self) -> usize {
-    8usize << 60 | self.root_ppn.0
-}
 
+/// translate a pointer to a mutable u8 Vec through page table
 pub fn translated_byte_buffer(
     token: usize,
     ptr: *const u8,

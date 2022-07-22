@@ -8,6 +8,8 @@
 
 extern crate alloc;
 
+#[macro_use]
+extern crate bitflags;
 use core::arch::global_asm;
 
 
@@ -27,7 +29,6 @@ pub mod syscall;
 pub mod task;
 mod timer;
 pub mod trap;
-extern crate bitflags;
 
 
 global_asm!(include_str!("entry.asm"));
@@ -49,15 +50,16 @@ fn clear_bss() {
 }
 
 #[no_mangle]
+/// the rust entry-point of os
 pub fn rust_main() -> ! {
     clear_bss();
     println!("\x1b[31m[Kernel] Hello, World!\x1b[0m");
     /////
     mm::init();
-    println!("[Kernel] heap test!");
-    mm::heap_allocator::heap_test();
+    println!("[Kernel] back to world!");
+    //mm::heap_allocator::heap_test();
+    mm::remap_test();
     trap::init();
-    loader::load_apps();
     trap::enable_timer_interrupt();
     timer::set_next_trigger();
     task::run_first_task();

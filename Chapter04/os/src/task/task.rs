@@ -1,17 +1,21 @@
 use super::TaskContext;
+use crate::config::{kernel_stack_position, TRAP_CONTEXT};
+use crate::mm::{MapPermission, MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
+use crate::trap::{trap_handler, TrapContext};
 
-#[derive(Copy, Clone)]
+
+/// task control block structure
 pub struct TaskControlBlock {
     pub task_status: TaskStatus,
     pub task_cx: TaskContext,
     pub memory_set: MemorySet,
     pub trap_cx_ppn: PhysPageNum,
     pub base_size: usize,
-
 }
 
 
 #[derive(Copy, Clone, PartialEq)]
+/// task status: UnInit, Ready, Running, Exited
 pub enum TaskStatus {
     UnInit, // 
     Ready, //
@@ -61,5 +65,9 @@ impl TaskControlBlock {
     pub fn get_trap_cx(&self) -> &'static mut TrapContext {
         self.trap_cx_ppn.get_mut()
     }
+    pub fn get_user_token(&self) -> usize {
+        self.memory_set.token()
+    }
+
 }
 

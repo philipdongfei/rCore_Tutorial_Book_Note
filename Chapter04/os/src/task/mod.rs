@@ -4,9 +4,10 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
-use crate::config::MAX_APP_NUM;
-use crate::loader::{get_num_app, init_app_cx};
+use crate::loader::{ get_app_data, get_num_app };
 use crate::sync::UPSafeCell;
+use crate::trap::TrapContext;
+use alloc::vec::Vec;
 use lazy_static::*;
 use switch::__switch;
 use task::{TaskControlBlock, TaskStatus};
@@ -36,17 +37,20 @@ lazy_static! {
         println!("num_app = {}", num_app);
         let mut tasks: Vec<TaskControlBlock> = Vec::new();
         for i in 0..num_app {
-            tasks.push(TAskControlBlock::new(
+            tasks.push(TaskControlBlock::new(
                     get_app_data(i),
                     i,
             ));
         }
         TaskManager {
             num_app,
-            inner: RefCell::new(TaskManagerInner {
-                tasks,
-                current_task: 0,
-            }),
+            inner: unsafe {
+
+                UPSafeCell::new(TaskManagerInner {
+                    tasks,
+                    current_task: 0,
+                })
+            },    
         }
     };
 }
@@ -100,9 +104,13 @@ impl TaskManager {
             }
             // go back to user mode
         } else {
-            panic!("All applications completed!");
+            /*
+            println!("All applications completed!");
+
             use crate::board::QEMUExit;
             crate::board::QEMU_EXIT_HANDLE.exit_success();
+            */
+            panic!("All applications completed");
         }
     }
 }
@@ -148,12 +156,11 @@ pub fn exit_current_and_run_next() {
 
 impl TaskManager {
     fn get_current_token(&self) -> usize {
-        let inner = self.inner.borrow();
-        let current = inner.current_task;
-        inner.tasks[current].get_user_token()
+        let inner = self.inner.exclusive_access();
+        inner.tasks[inner.current_task].get_user_token()
     }
     fn get_current_trap_cx(&self) -> &mut TrapContext {
-        let inner = self.inner.borrow();
+        let inner = self.inner.exclusive_access();
         let current = inner.current_task;
         inner.tasks[current].get_trap_cx()
     }
@@ -163,61 +170,14 @@ pub fn current_user_token() -> usize {
     TASK_MANAGER.get_current_token()
 }
 
-pub fn current_trap_cx() -> &'static mut TrapContex {
+pub fn current_trap_cx() -> &'static mut TrapContext {
     TASK_MANAGER.get_current_trap_cx()
 }
 
-fn set_kernel_trap_entry() {
-    unsafe {
-        stvec::write(trap_from_kernel as usize, TrapMode::Direct);
-    }
-}
 
-#[no_mangle]
-pub fn trap_from_kernel() -> ! {
-    panic!("a trap from kernel!");
-}
 
-#[no_mangle]
-pub fn trap_handler() -> ! {
-    set_kernel_trap_entry();
-    let cx = current_trap_cx();
-    let scause = scause::read();
-    let stval = stval::read();
-    match scause.cause() {
-        ...
-    }
-    trap_return();
-}
 
-fn set_user_trap_entry() {
-    unsafe {
-        stvec::write(TRAMPOLINE as usize, TrapMode::Direct);
-    }
-}
 
-#[no_mangle]
-pub fn trap_return() -> ! {
-    set_user_trap_entry();
-    let trap_cx_ptr = TRAP_CONTEXT;
-    let user_satp = current_user_token();
-    extern "C" {
-        fn __alltraps();
-        fn __restore();
-    }
-    let restore_va = __restore as usize - __alltraps as usize + TRAMPOLINE;
-    unsafe {
-        asm!(
-            "fence.i",
-            "jr {restore_va}",
-            restore_va = in(reg) restore_va,
-            in("a0") trap_cx_ptr,
-            in("a1") user_satp,
-            options(noreturn)
-        );
-    }
-    panic!("Unreachable in back_to_user!");
-}
 
 
 
