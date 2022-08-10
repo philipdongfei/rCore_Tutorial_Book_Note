@@ -10,7 +10,7 @@ use user_lib::{exit, fork, get_time, getpid, wait, yield_};
 static NUM: usize = 30;
 const N: usize = 10;
 static P: i32 = 10007;
-type Arr = [[i32; N], N];
+type Arr = [[i32; N]; N];
 
 fn work(times: isize) {
     let mut a: Arr = Default::default();

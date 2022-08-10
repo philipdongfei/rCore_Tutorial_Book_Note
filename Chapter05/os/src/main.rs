@@ -10,7 +10,6 @@ extern crate alloc;
 
 #[macro_use]
 extern crate bitflags;
-use core::arch::global_asm;
 
 
 #[cfg(not(any(feature = "board_k210")))]
@@ -22,14 +21,16 @@ mod console;
 mod config;
 mod lang_items;
 mod loader;
-mod mm;
+pub mod mm;
 mod sbi;
-mod sync;
+pub mod sync;
 pub mod syscall;
 pub mod task;
 mod timer;
 pub mod trap;
 
+
+use core::arch::global_asm;
 
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.S"));
@@ -56,12 +57,14 @@ pub fn rust_main() -> ! {
     println!("\x1b[31m[Kernel] Hello, World!\x1b[0m");
     /////
     mm::init();
-    println!("[Kernel] back to world!");
     //mm::heap_allocator::heap_test();
     mm::remap_test();
+    task::add_initproc();
+    println!("after initproc!");
     trap::init();
     trap::enable_timer_interrupt();
     timer::set_next_trigger();
-    task::run_first_task();
+    loader::list_apps();
+    task::run_tasks();
     panic!("Unreachable in rust_main!");
 }

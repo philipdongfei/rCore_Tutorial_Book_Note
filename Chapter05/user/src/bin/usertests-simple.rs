@@ -18,6 +18,8 @@ static TESTS: &[&str] = &[
     "yield\0",
 ];
 
+use user_lib::{exec, fork, waitpid};
+
 #[no_mangle]
 pub fn main() -> i32 {
     for test in TESTS {

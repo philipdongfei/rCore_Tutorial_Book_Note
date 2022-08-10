@@ -28,7 +28,7 @@ static FAIL_TESTS: &[(&str, &str, &str, &str, i32)] = &[
 
 use user_lib::{exec, fork, waitpid};
 
-fn run_tests(tests: &[&str, &str, &str, &str, i32)]) -> i32 {
+fn run_tests(tests: &[(&str, &str, &str, &str, i32)]) -> i32 {
     let mut pass_num = 0;
     let mut arr: [*const u8; 4] = [
         core::ptr::null::<u8>(),

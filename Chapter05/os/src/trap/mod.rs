@@ -57,7 +57,7 @@ pub fn trap_handler() -> ! {
             let mut cx = current_trap_cx();
             cx.sepc += 4;
             // get system call return value
-            let result = syscall(cx.x[17]. [cx.x[10], cx.x[11], cx.x[12]]);
+            let result = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]);
             // cx is changed during sys_exec, so we have to call it again
             cx = current_trap_cx();
             cx.x[10] = result as usize;
@@ -121,7 +121,7 @@ pub fn trap_return() -> ! {
 /// Unimplement: traps/interrupts/exceptions from kernel mode
 /// Todo: Chapter 9: I/O device
 pub fn trap_from_kernel() -> ! {
-    panic!("a trap from kernel!");
+    panic!("a trap {:?} from kernel!", scause::read().cause());
 }
 
 

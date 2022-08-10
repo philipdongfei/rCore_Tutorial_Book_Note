@@ -1,3 +1,5 @@
+//! Implementation of [`FrameAllocator`] which
+//! controls all the frames in the operating system
 use super::{PhysAddr, PhysPageNum};
 use crate::config::MEMORY_END;
 use crate::sync::UPSafeCell;
@@ -11,9 +13,11 @@ pub struct FrameTracker {
 }
 
 impl FrameTracker {
+    ///Create an empty `FrameTracker`
     pub fn new(ppn: PhysPageNum) -> Self {
         // page cleaning
         let bytes_array = ppn.get_bytes_array();
+        //println!("FrameTracker::new bytes array: {}", bytes_array.len());
         for i in bytes_array {
             *i = 0;
         }
@@ -51,9 +55,9 @@ impl StackFrameAllocator {
     pub fn init(&mut self, l: PhysPageNum, r: PhysPageNum) {
         self.current = l.0;
         self.end = r.0;
+        println!("last {} Physical Frames.", self.end - self.current);
     }
 }
-
 
 impl FrameAllocator for StackFrameAllocator {
     fn new() -> Self {
@@ -66,22 +70,17 @@ impl FrameAllocator for StackFrameAllocator {
     fn alloc(&mut self) -> Option<PhysPageNum> {
         if let Some(ppn) = self.recycled.pop() {
                 Some(ppn.into())
+        } else if self.current == self.end {
+            None
         } else {
-            if self.current == self.end {
-                None
-            } else {
-                self.current += 1;
-                Some((self.current - 1).into())
-            }
+            self.current += 1;
+            Some((self.current - 1).into())
         }
     }
     fn dealloc(&mut self, ppn: PhysPageNum) {
         let ppn = ppn.0;
         // validity check
-        if ppn >= self.current || self.recycled
-            .iter()
-            .find(|&v| {*v == ppn})
-            .is_some() {
+        if ppn >= self.current || self.recycled.iter().any(|&v| v == ppn){
             panic!("Frame ppn={:#x} has not been allocated!", ppn);
         }
         // recycle
@@ -108,7 +107,9 @@ pub fn init_frame_allocator() {
     }
     FRAME_ALLOCATOR
         .exclusive_access()
-        .init(PhysAddr::from(ekernel as usize).ceil(), PhysAddr::from(MEMORY_END).floor());
+        .init(
+            PhysAddr::from(ekernel as usize).ceil(), 
+            PhysAddr::from(MEMORY_END).floor());
 }
 
 /// allocate a frame
@@ -117,6 +118,7 @@ pub fn frame_alloc() -> Option<FrameTracker> {
         .exclusive_access()
         .alloc()
         .map(|ppn| FrameTracker::new(ppn))
+        //.map(FrameTracker::new)
 }
 
 /// deallocate a frame

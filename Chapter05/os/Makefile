@@ -29,6 +29,9 @@ OBJCOPY := rust-objcopy --binary-architecture=riscv64
 # Disassembly
 DISASM ?= -x
 
+# Run usertests or usershell
+TEST ?= 
+
 build: env switch-check $(KERNEL_BIN)
 
 switch-check:

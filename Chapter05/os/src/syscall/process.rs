@@ -1,9 +1,13 @@
-use crate::task::{exit_current_and_run_next, suspend_current_and_run_next};
+use crate::loader::get_app_data_by_name;
+use crate::mm::{translated_refmut, translated_str};
+use crate::task::{
+    add_task, current_task, current_user_token, 
+    exit_current_and_run_next, suspend_current_and_run_next};
 use crate::timer::get_time_ms;
+use alloc::sync::Arc;
 
-/// task exits and submit an exit code
+
 pub fn sys_exit(exit_code: i32) -> ! {
-    //println!("[kernel] Application exited with code {}", exit_code);
     exit_current_and_run_next(exit_code);
     panic!("Unreachable in sys_exit!");
 }
@@ -13,10 +17,14 @@ pub fn sys_yield() -> isize {
     0
 }
 
-/// get time in milliseconds
 pub fn sys_get_time() -> isize {
     get_time_ms() as isize
 }
+
+pub fn sys_getpid() -> isize {
+    current_task().unwrap().pid.0 as isize
+}
+
 
 pub fn sys_fork() -> isize {
     let current_task = current_task().unwrap();
@@ -52,12 +60,13 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
 
     // ---- access current TCB exclusively
     let mut inner = task.inner_exclusive_access();
-    if inner.children
+    if !inner
+        .children
         .iter()
-        .find(|p| { pid == -1 || pid as usize == p.getpid() })
-        .is_none() {
+        .any(|p|  pid == -1 || pid as usize == p.getpid())
+    {
         return -1;
-        // ---- stop exclusively accessing current PCB
+        // ---- release current PCB
     }
     let pair = inner.children
         .iter()
@@ -65,22 +74,23 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
         .find(|(_,p)| {
             // ++++ temporarily access child PCB exclusively
             p.inner_exclusive_access().is_zombie() && (pid == -1 || pid as usize == p.getpid())
-            // ++++ stop exclusively accessing child PCB
+            // ++++ release child PCB
         });
     if let Some((idx, _)) = pair {
         let child = inner.children.remove(idx);
         // confirm that child will be deallocated after removing from children list
+        // https://doc.rust-lang.org/std/sync/struct.Arc.html#method.strong_count
         assert_eq!(Arc::strong_count(&child), 1);
         let found_pid = child.getpid();
         // ++++ temporarily access child TCB exclusively
         let exit_code = child.inner_exclusive_access().exit_code;
-        // ++++ stop exclusively accessing child PCB
+        // ++++ release child PCB
         *translated_refmut(inner.memory_set.token(), exit_code_ptr) = exit_code;
         found_pid as isize
     } else {
         -2
     }
-    // ---- stop exclusively accessing current PCB automatically
+    // ---- release current PCB automatically
 }
 
 
