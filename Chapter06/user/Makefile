@@ -12,8 +12,6 @@ CP := cp
 
 TEST ?= 
 
-
-
 elf: $(APPS) 
 		@cargo build --release
 ifeq ($(TEST), 1)

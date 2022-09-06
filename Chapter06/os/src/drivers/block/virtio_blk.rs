@@ -1,14 +1,20 @@
+use super::BlockDevice;
+use crate::mm::{
+    frame_alloc, frame_dealloc, kernel_token, FrameTracker, PageTable, PhysAddr, PhysPageNum, StepByOne, VirtAddr
+};
+use crate::sync::UPSafeCell;
+use alloc::vec::Vec;
+use lazy_static::*;
 use virtio_drivers::{VirtIOBlk, VirtIOHeader};
+
+
+#[allow(unused)]
 const VIRTIO0: usize = 0x10001000;
 
-pub struct VirtIOBlock(Mutex<VirtIOBlk<'static>>);
+pub struct VirtIOBlock(UPSafeCell<VirtIOBlk<'static>>);
 
-impl VirtIOBlock {
-    pub fn new() -> Self {
-        Self(Mutex::new(VirtIOBlk::new(
-            unsafe { &mut *(VIRTIO0 as *mut VirtIOHeader) }
-        ).unwrap()))
-    }
+lazy_static! {
+    static ref QUEUE_FRAMES: UPSafeCell<Vec<FrameTracker>> = unsafe {  UPSafeCell::new(Vec::new())};
 }
 
 impl BlockDevice for VirtIOBlock {
@@ -20,18 +26,30 @@ impl BlockDevice for VirtIOBlock {
     }
 }
 
-lazy_static! {
-    static ref QUEUE_FRAMES: Mutex<Vec<FrameTracker>> = Mutex::new(Vec::new());
+impl VirtIOBlock {
+    #[allow(unused)]
+    pub fn new() -> Self {
+        unsafe {
+            Self(UPSafeCell::new(VirtIOBlk::new(
+                unsafe { &mut *(VIRTIO0 as *mut VirtIOHeader) }
+            ).unwrap(), 
+            ))
+        }
+    }
 }
+
+
 
 #[no_mangle]
 pub extern "C" fn virtio_dma_alloc(pages: usize) -> PhysAddr {
     let mut ppn_base = PhysPageNum(0);
     for i in 0..pages {
         let frame = frame_alloc().unwrap();
-        if i == 0 { ppn_base = frame.ppn; }
+        if i == 0 { 
+            ppn_base = frame.ppn; 
+        }
         assert_eq!(frame.ppn.0, ppn_base.0 + i);
-        QUEUE_FRAMES.lock().push(frame);
+        QUEUE_FRAMES.exclusive_access().push(frame);
     }
     ppn_base.into()
 }
@@ -53,5 +71,7 @@ pub extern "C" fn virtio_phys_to_virt(paddr: PhysAddr) -> VirtAddr {
 
 #[no_mangle]
 pub extern "C" fn virtio_virt_to_phys(vaddr: VirtAddr) -> PhysAddr {
-    PageTable::from_token(kernel_token()).translate_va(vaddr).unwrap()
+    PageTable::from_token(kernel_token())
+        .translate_va(vaddr)
+        .unwrap()
 }

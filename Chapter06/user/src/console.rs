@@ -1,9 +1,11 @@
 use core::fmt::{self, Write};
 
 
-const STDOUT: usize = 1;
 const STDIN: usize = 0;
+const STDOUT: usize = 1;
+
 use super::{read, write};
+
 struct Stdout;
 
 impl Write for Stdout {
@@ -16,8 +18,6 @@ impl Write for Stdout {
 pub fn print(args: fmt::Arguments) {
     Stdout.write_fmt(args).unwrap();
 }
-
-
 
 
 #[macro_export]

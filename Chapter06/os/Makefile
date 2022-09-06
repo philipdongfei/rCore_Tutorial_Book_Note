@@ -44,20 +44,29 @@ endif
 
 env:
 	(rustup target list | grep "riscv64gc-unknown-none-elf (installed)") || rustup target add $(TARGET) 
-	cargo install cargo-binutils --vers =0.3.3
+	cargo install cargo-binutils
 	rustup component add rust-src
 	rustup component add llvm-tools-preview
 
+sdcard: fs-img
+	#echo "Are you sure write to $(SDCARD) ? [y/N] " && read ans && [ $${ans:-N} = y ]
+	@sudo dd if=/dev/zero of=$(SDCARD) bs=1048576 count=32
+	@sudo dd if=$(FS_IMG) of=$(SDCARD)
+
 $(KERNEL_BIN): kernel
 	@$(OBJCOPY) $(KERNEL_ELF) --strip-all -O binary $@
+fs-img: $(APPS)
+	@cd ../user && make build TEST=$(TEST)
+	@rm -f $(FS_IMG)
+	@cd ../easy-fs-fuse && cargo run --release -- -s ../user/src/bin/ -t ../user/target/riscv64gc-unknown-none-elf/release/
+
+$(APPS):
 
 kernel:
-	@cd ../user && make build
 	@echo Platform: $(BOARD)
 	@cp src/linker-$(BOARD).ld src/linker.ld
-	@cargo build $(MODE_ARG) #--features "board_$(BOARD)"
+	@cargo build --release #--features "board_$(BOARD)"
 	#@rm src/linker.ld
-
 
 clean: 
 	@cargo clean
@@ -81,7 +90,7 @@ ifeq ($(BOARD), qemu)
 		-bios $(BOOTLOADER) \
 		-device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA)\
 		-drive file=$(FS_IMG),if=none,format=raw,id=x0\
-		-device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+	-device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
 endif
 
 debug: build
@@ -98,5 +107,5 @@ gdbserver: build
 gdbclient:
 	@riscv64-unknown-elf-gdb -ex 'file $(KERNEL_ELF)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'
 
-.PHONY: build kernel clean disasm disasm-vim run-inner switch-check gdbserver gdbclient 
+.PHONY: build env kernel clean disasm disasm-vim run-inner switch-check fs-img gdbserver gdbclient 
 

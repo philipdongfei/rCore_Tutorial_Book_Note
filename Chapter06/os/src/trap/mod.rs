@@ -18,12 +18,6 @@ global_asm!(include_str!("trap.S"));
 
 /// initialize CSR `stvec` as the entry of `__alltraps`
 pub fn init() {
-    /*
-    extern "C" { fn __alltraps(); }
-    unsafe {
-        stvec::write(__alltraps as usize, TrapMode::Direct);
-    }
-    */
     set_kernel_trap_entry();
 }
 
@@ -121,6 +115,8 @@ pub fn trap_return() -> ! {
 /// Unimplement: traps/interrupts/exceptions from kernel mode
 /// Todo: Chapter 9: I/O device
 pub fn trap_from_kernel() -> ! {
+    use riscv::register::sepc;
+    println!("stval = {:#x}, sepc = {:#x}", stval::read(), sepc::read());
     panic!("a trap {:?} from kernel!", scause::read().cause());
 }
 

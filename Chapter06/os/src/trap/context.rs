@@ -1,6 +1,7 @@
 use riscv::register::sstatus::{self, Sstatus, SPP}; 
 
 #[repr(C)]
+#[derive(Debug)]
 /// Trap Context structure containing sstatus, sepc and registers
 pub struct TrapContext {
     /// general regs[0..31]
@@ -29,7 +30,7 @@ impl TrapContext {
         kernel_satp: usize,
         kernel_sp: usize,
         trap_handler: usize,
-        ) -> Self {
+    ) -> Self {
         let mut sstatus = sstatus::read(); // CSR sstatus
         sstatus.set_spp(SPP::User);
         let mut cx = Self {

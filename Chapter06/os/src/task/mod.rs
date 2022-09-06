@@ -20,16 +20,17 @@ mod pid;
 mod processor;
 mod switch;
 #[allow(clippy::module_inception)]
+#[allow(rustdoc::private_intra_doc_links)]
 mod task;
 
-use crate::loader::get_app_data_by_name;
+use crate::fs::{open_file, OpenFlags};
 use alloc::sync::Arc;
+pub use context::TaskContext;
 use lazy_static::*;
 pub use manager::{fetch_task, TaskManager};
 use switch::__switch;
 use task::{TaskControlBlock, TaskStatus};
 
-pub use context::TaskContext;
 pub use manager::add_task;
 pub use pid::{pid_alloc, KernelStack, PidAllocator, PidHandle};
 pub use processor::{

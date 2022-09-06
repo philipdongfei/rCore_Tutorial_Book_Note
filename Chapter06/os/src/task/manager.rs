@@ -11,6 +11,7 @@ pub struct TaskManager {
 
 /// A simple FIFO scheduler.
 impl TaskManager {
+    ///Create an empty TaskManager
     pub fn new() -> Self {
         Self { ready_queue: VecDeque::new(), }
     }
